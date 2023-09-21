@@ -3,6 +3,7 @@ import qrcode
 import os
 import requests
 import itertools
+import getpass
 
 class QRCodeGenerator(ABC):
 
@@ -24,8 +25,9 @@ class BasicQRCodeGenerator(QRCodeGenerator):
 
 class QRCodeAnalyzer():
     
-    def __init__(self, generator):
+    def __init__(self, generator, api_key):
         self.generator = generator
+        self.api_key = api_key
         
     def run(self):
         dangerous_domains = []
@@ -33,7 +35,7 @@ class QRCodeAnalyzer():
         
         for qrcode in self.generator.qrcodes:
             if 'http://' in qrcode or 'https://' in qrcode:
-                if is_dangerous(qrcode):
+                if self.is_dangerous(qrcode):
                     print(f"{qrcode} is dangerous!")
                     dangerous_domains.append(qrcode)
         
@@ -41,14 +43,17 @@ class QRCodeAnalyzer():
             f.write('\n'.join(dangerous_domains))
             
         self.generator.qrcodes.clear()
-            
-def is_dangerous(qrcode):
-    url = 'https://www.virustotal.com/vtapi/v2/url/report'
-    params = {'apikey':'key', 'resource': qrcode}
-    response = requests.get(url, params=params)
-    return response.json()['positives'] > 0
-            
+    
+    def is_dangerous(self, qrcode):
+        url = 'https://www.virustotal.com/vtapi/v2/url/report'
+        params = {'apikey': self.api_key, 'resource': qrcode}
+        response = requests.get(url, params=params)
+        return response.json()['positives'] > 0
+        
 if __name__ == '__main__':
+
+    api_key = getpass.getpass('Enter VirusTotal API key: ')
+    
     generator = BasicQRCodeGenerator()
-    analyzer = QRCodeAnalyzer(generator)
+    analyzer = QRCodeAnalyzer(generator, api_key)
     analyzer.run()
